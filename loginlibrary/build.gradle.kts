@@ -33,6 +33,23 @@ android {
     }
 }
 
+afterEvaluate {
+    publishing {
+        publications {
+            create<MavenPublication>("release") {
+                from(components["release"]) // 表示发布 release（JitPack 也不会使用到）
+
+                groupId = "com.github.Frank97129" // 依赖库的组 ID
+                artifactId = "Easy-Login"  // 依赖库名称
+                version = "1.0.4" // 版本号
+            }
+        }
+    }
+}
+
+
+
+
 dependencies {
 
     implementation("androidx.core:core-ktx:1.9.0")
