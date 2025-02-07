@@ -42,7 +42,7 @@ afterEvaluate {
 
                 groupId = "com.github.Frank97129" // 依赖库的组 ID
                 artifactId = "Easy-Login"  // 依赖库名称
-                version = "1.0.5" // 版本号
+                version = "1.0.6" // 版本号
             }
         }
     }

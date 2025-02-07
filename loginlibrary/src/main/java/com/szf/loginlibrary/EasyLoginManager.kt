@@ -11,12 +11,16 @@ import com.google.android.gms.auth.api.signin.*
 import com.google.android.gms.common.api.ApiException
 import java.lang.ref.WeakReference
 
+
 class EasyLoginManager private constructor(context: Context) {
 
-    private val appContext = context.applicationContext
+    enum class LoginType {
+        Google, Facebook
+    }
+
     private val callbackManager: CallbackManager = CallbackManager.Factory.create()
     private var googleSignInClient: GoogleSignInClient? = null
-    private var googleLoginCallback: WeakReference<GoogleLoginCallback>? = null
+    private var loginCallback: WeakReference<LoginCallback>? = null
 
     companion object {
         private const val GOOGLE_LOGIN_REQUEST_CODE = 901
@@ -28,23 +32,36 @@ class EasyLoginManager private constructor(context: Context) {
             instance ?: synchronized(this) {
                 instance ?: EasyLoginManager(context).also { instance = it }
             }
+
+    }
+
+    init {
+        registerFacebookCallback()
+    }
+
+    fun setLoginCallBack(callback: LoginCallback) {
+        this.loginCallback = WeakReference(callback)
+    }
+
+    fun destroy() {
+        this.loginCallback = null
     }
 
     fun getCallbackManager(): CallbackManager = callbackManager
 
     // ========================= Facebook 登录 =========================
-    fun registerFacebookCallback(callback: FacebookLoginCallback?) {
+    fun registerFacebookCallback() {
         LoginManager.getInstance()
             .registerCallback(callbackManager, object : FacebookCallback<LoginResult> {
                 override fun onSuccess(loginResult: LoginResult) {
                     val token = loginResult.accessToken?.token
                     Log.d("FACEBOOK", "Success accessToken=$token")
-                    token?.let { callback?.onSuccess(it) }
+                    token?.let { loginCallback?.get()?.onSuccess(LoginData.Facebook(it)) }
                 }
 
                 override fun onCancel() {
                     Log.d("FACEBOOK", "onCancel")
-                    callback?.onCancel()
+                    loginCallback?.get()?.onCancel()
                 }
 
                 override fun onError(error: FacebookException) {
@@ -52,7 +69,7 @@ class EasyLoginManager private constructor(context: Context) {
                     if (error is FacebookAuthorizationException && AccessToken.getCurrentAccessToken() != null) {
                         LoginManager.getInstance().logOut()
                     }
-                    callback?.onError(error.localizedMessage ?: "Facebook 登录失败")
+                    loginCallback?.get()?.onError(error.localizedMessage ?: "Facebook login error")
                 }
             })
     }
@@ -66,8 +83,7 @@ class EasyLoginManager private constructor(context: Context) {
     }
 
     // ========================= Google 登录 =========================
-    fun googleLogin(activity: Activity, clientId: String, callback: GoogleLoginCallback) {
-        googleLoginCallback = WeakReference(callback)
+    fun googleLogin(activity: Activity, clientId: String) {
         googleSignInClient = buildGoogleSignInClient(activity, clientId)
         activity.startActivityForResult(googleSignInClient?.signInIntent, GOOGLE_LOGIN_REQUEST_CODE)
     }
@@ -100,22 +116,22 @@ class EasyLoginManager private constructor(context: Context) {
         try {
             if (task.isSuccessful) {
                 val account = task.getResult(ApiException::class.java)
-                googleLoginCallback?.get()?.onSuccess(account)
+                loginCallback?.get()?.onSuccess(LoginData.Google(account))
             }
-        } catch (e: ApiException) {
-            googleLoginCallback?.get()?.onFailure(e)
+        } catch (error: ApiException) {
+            loginCallback?.get()?.onError(error.localizedMessage ?: "Google login error")
         }
     }
 
-    // ========================= 接口回调 =========================
-    interface FacebookLoginCallback {
-        fun onSuccess(accessToken: String)
-        fun onCancel()
-        fun onError(message: String)
+    sealed class LoginData {
+        data class Google(val account: GoogleSignInAccount) : LoginData()
+        data class Facebook(val token: String) : LoginData()
     }
 
-    interface GoogleLoginCallback {
-        fun onSuccess(account: GoogleSignInAccount)
-        fun onFailure(e: Exception)
+    interface LoginCallback {
+        fun onSuccess(data: LoginData)
+
+        fun onCancel()
+        fun onError(message: String)
     }
 }
