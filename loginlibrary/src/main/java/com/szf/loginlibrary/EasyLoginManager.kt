@@ -20,7 +20,7 @@ class EasyLoginManager private constructor(context: Context) {
 
     private val callbackManager: CallbackManager = CallbackManager.Factory.create()
     private var googleSignInClient: GoogleSignInClient? = null
-    private var loginCallback: WeakReference<LoginCallback>? = null
+    private var loginCallback:LoginCallback? = null
 
     companion object {
         private const val GOOGLE_LOGIN_REQUEST_CODE = 901
@@ -40,7 +40,7 @@ class EasyLoginManager private constructor(context: Context) {
     }
 
     fun setLoginCallBack(callback: LoginCallback) {
-        this.loginCallback = WeakReference(callback)
+        this.loginCallback = callback
     }
 
     fun destroy() {
@@ -56,12 +56,12 @@ class EasyLoginManager private constructor(context: Context) {
                 override fun onSuccess(loginResult: LoginResult) {
                     val token = loginResult.accessToken?.token
                     Log.d("FACEBOOK", "Success accessToken=$token")
-                    token?.let { loginCallback?.get()?.onSuccess(LoginData.Facebook(it)) }
+                    token?.let { loginCallback?.onSuccess(LoginData.Facebook(it)) }
                 }
 
                 override fun onCancel() {
                     Log.d("FACEBOOK", "onCancel")
-                    loginCallback?.get()?.onCancel()
+                    loginCallback?.onCancel()
                 }
 
                 override fun onError(error: FacebookException) {
@@ -69,7 +69,7 @@ class EasyLoginManager private constructor(context: Context) {
                     if (error is FacebookAuthorizationException && AccessToken.getCurrentAccessToken() != null) {
                         LoginManager.getInstance().logOut()
                     }
-                    loginCallback?.get()?.onError(error.localizedMessage ?: "Facebook login error")
+                    loginCallback?.onError(error.localizedMessage ?: "Facebook login error")
                 }
             })
     }
@@ -116,10 +116,10 @@ class EasyLoginManager private constructor(context: Context) {
         try {
             if (task.isSuccessful) {
                 val account = task.getResult(ApiException::class.java)
-                loginCallback?.get()?.onSuccess(LoginData.Google(account))
+                loginCallback?.onSuccess(LoginData.Google(account))
             }
         } catch (error: ApiException) {
-            loginCallback?.get()?.onError(error.localizedMessage ?: "Google login error")
+            loginCallback?.onError(error.localizedMessage ?: "Google login error")
         }
     }
 
